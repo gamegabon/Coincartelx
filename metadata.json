@@ -1,0 +1,8 @@
+{
+  "name": "OMEGA Zenith",
+  "description": "Advanced AI-powered Android automation and gaming command center. Automate tasks with divine precision using Gemini AI.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
