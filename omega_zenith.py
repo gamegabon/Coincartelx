@@ -6,11 +6,12 @@ import requests
 import re
 import random
 import threading
+import subprocess
 from datetime import datetime
 from ppadb.client import Client as AdbClient
 
 # ==========================================================
-# OMEGA v11.0 - LE ZÉNITH (ÉDITION ULTIME - SINGLE FILE)
+# OMEGA v12.0 - LE ZÉNITH (VISION PARFAITE & IA BOOSTÉE)
 # ==========================================================
 # IA d'Automatisation de Niveau Divin - Optimisé pour Gemini 3
 # ==========================================================
@@ -31,7 +32,7 @@ class OmegaZenith:
     def __init__(self):
         # Configuration du Noyau
         self.key_index = 0
-        self.retry_count = 0 # Compteur Anti-Boucle 429
+        self.retry_count = 0
         self.model_id = MODEL_ID
         self.adb_target = ADB_TARGET
         self.memory_file = MEMORY_FILE
@@ -41,8 +42,8 @@ class OmegaZenith:
         self.memory = self.load_json(self.memory_file, {"aliases": {}, "history": []})
         self.ui_map = self.load_json(self.ui_map_file, {})
         self.device = self.connect_adb()
+        self.screen_width, self.screen_height = self.get_screen_size()
         self.is_running = False
-        self.last_action_time = 0
 
     def load_json(self, filepath, default):
         if os.path.exists(filepath):
@@ -57,26 +58,62 @@ class OmegaZenith:
 
     def connect_adb(self):
         """ Connexion au corps physique via ADB """
+        print(f"🔌 Tentative de connexion à {self.adb_target}...")
         os.system(f"adb connect {self.adb_target} > /dev/null 2>&1")
-        client = AdbClient(host="127.0.0.1", port=5037)
         try:
+            client = AdbClient(host="127.0.0.1", port=5037)
+            device = client.device(self.adb_target)
+            if device:
+                print(f"✅ OMEGA : Connexion neuronale établie ({self.adb_target})")
+                return device
+            
+            # Fallback sur le premier appareil disponible
             devices = client.devices()
             if devices:
-                print(f"✅ OMEGA : Connexion neuronale établie ({self.adb_target})")
+                print(f"✅ OMEGA : Connecté au device par défaut ({devices[0].serial})")
+                self.adb_target = devices[0].serial
                 return devices[0]
         except Exception as e:
-            print(f"❌ OMEGA : Échec de connexion ADB : {e}")
+            print(f"❌ OMEGA : Échec du serveur ADB local : {e}")
         return None
 
-    def get_eyesight(self):
-        """ Capture d'écran haute performance (Vision d'OMEGA) """
-        if not self.device: return None
+    def get_screen_size(self):
+        """ Détecte la résolution de l'écran pour aider l'IA à cibler """
+        if not self.device: return 1080, 2400
         try:
-            # Capture directe en mémoire pour une latence minimale
-            result = self.device.screencap()
-            return base64.b64encode(result).decode('utf-8')
-        except:
+            out = self.device.shell("wm size")
+            match = re.search(r'Physical size: (\d+)x(\d+)', out)
+            if match:
+                w, h = int(match.group(1)), int(match.group(2))
+                print(f"📏 Résolution détectée : {w}x{h}")
+                return w, h
+        except: pass
+        return 1080, 2400
+
+    def get_eyesight(self):
+        """ Capture d'écran ultra-robuste avec fallback """
+        if not self.device: 
+            print("⚠️ Appareil non connecté.")
             return None
+        
+        # Méthode 1 : Subprocess (Plus rapide et fiable pour éviter les bugs de ppadb)
+        try:
+            result = subprocess.run(["adb", "-s", self.adb_target, "exec-out", "screencap", "-p"], capture_output=True, timeout=5)
+            if result.returncode == 0 and len(result.stdout) > 1000:
+                return base64.b64encode(result.stdout).decode('utf-8')
+        except Exception as e:
+            pass
+
+        # Méthode 2 : PPADB (Fallback)
+        try:
+            result = self.device.screencap()
+            if result and len(result) > 1000:
+                return base64.b64encode(result).decode('utf-8')
+        except Exception as e:
+            print(f"⚠️ Erreur vision PPADB : {e}")
+        
+        print("❌ OMEGA est aveugle : Impossible de capturer l'écran.")
+        return None
 
     def get_current_app(self):
         """ Analyse du processus actif """
@@ -89,82 +126,98 @@ class OmegaZenith:
 
     def call_ai(self, prompt, is_gaming=False):
         """ Appel au noyau cognitif Gemini (Vision + Raisonnement) """
-        # BOUCLIER ANTI-429 (CIRCUIT BREAKER)
-        if self.retry_count >= len(API_KEYS):
-            print("\n⏳ [ANTI-BAN] Toutes les clés sont épuisées. Refroidissement de 30 secondes...")
-            time.sleep(30)
-            self.retry_count = 0
-            return self.call_ai(prompt, is_gaming)
-
         b64_image = self.get_eyesight()
         current_app = self.get_current_app()
-        app_memory = self.ui_map.get(current_app, {})
-        
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model_id}:generateContent?key={API_KEYS[self.key_index]}"
         
         system_instruction = f"""
-        Tu es OMEGA v11.0, l'IA d'automatisation de niveau divin.
+        Tu es OMEGA v12.0, une IA d'automatisation visuelle de niveau divin.
         APPLICATION ACTUELLE : {current_app}
-        MÉMOIRE LOCALE : {json.dumps(app_memory)}
+        RÉSOLUTION ÉCRAN : {self.screen_width}x{self.screen_height}
 
         RÈGLES ABSOLUES :
-        1. NE TAPE JAMAIS DE COMMANDES TECHNIQUES SUR LE CLAVIER VIRTUEL. Utilise `system_shell`.
-        2. Sois concis. Analyse l'image et décide de l'action la plus efficace.
-        3. Si le Maître demande de jouer, utilise la boucle autonome.
+        1. Tu reçois une capture d'écran exacte de l'appareil. Analyse-la avec précision.
+        2. Pour cliquer sur un bouton ou un élément, estime ses coordonnées X et Y en fonction de l'image et de la résolution ({self.screen_width}x{self.screen_height}).
+        3. NE TAPE JAMAIS DE COMMANDES TECHNIQUES SUR LE CLAVIER VIRTUEL. Utilise `system_shell` ou `type`.
+        4. Si tu dois ouvrir une app, utilise `system_shell` avec `monkey -p <package> -c android.intent.category.LAUNCHER 1` ou `am start`.
+        5. Si tu es dans un jeu, analyse le plateau/l'état et joue le meilleur coup.
 
         ACTIONS DISPONIBLES :
-        - tap: {{"x": int, "y": int}} -> Clic précis (jitter ±2px auto).
-        - swipe: {{"x1": int, "y1": int, "x2": int, "y2": int, "duration": int}} -> Glissement.
-        - type: {{"text": str}} -> Saisie de texte humain.
+        - tap: {{"x": int, "y": int}} -> Clic précis sur l'écran.
+        - swipe: {{"x1": int, "y1": int, "x2": int, "y2": int, "duration": int}} -> Glissement (ex: scroll).
+        - type: {{"text": str}} -> Saisie de texte.
         - wait: {{"seconds": int}} -> Pause stratégique.
-        - system_shell: {{"cmd": str}} -> Commande ADB directe (ex: 'am start ...').
-        - learn_ui: {{"buttons": {{"nom": {{"x": int, "y": int}}}}}} -> Mémorisation de l'interface.
+        - system_shell: {{"cmd": str}} -> Commande ADB directe.
 
         RÉPONDS STRICTEMENT AU FORMAT JSON :
         {{
-          "analyse": "Ton raisonnement stratégique",
-          "action": "tap|swipe|type|wait|system_shell|learn_ui",
-          "params": {{}},
+          "analyse": "Décris ce que tu vois à l'écran et ton plan d'action.",
+          "action": "tap|swipe|type|wait|system_shell",
+          "params": {{"x": 500, "y": 1000}},
           "reponse": "Message clair pour le Maître"
         }}
         """
 
+        parts = [{"text": system_instruction}]
+        if b64_image:
+            parts.append({"inlineData": {"mimeType": "image/png", "data": b64_image}})
+        else:
+            parts.append({"text": "[ERREUR CRITIQUE : VISION AVEUGLE. L'écran n'a pas pu être capturé.]"})
+        
+        parts.append({"text": f"MAÎTRE : {prompt}" if prompt else "INSTRUCTION SYSTÈME : Analyse l'écran et exécute la prochaine action logique."})
+
         payload = {
-            "contents": [{
-                "parts": [
-                    {"text": system_instruction},
-                    {"inlineData": {"mimeType": "image/png", "data": b64_image}} if b64_image else {"text": "[Vision aveugle]"},
-                    {"text": f"MAÎTRE : {prompt}" if prompt else "INSTRUCTION SYSTÈME : Analyse l'écran et agis."}
-                ]
-            }],
+            "contents": [{"parts": parts}],
             "generationConfig": {
-                "temperature": 0.1,
+                "temperature": 0.2,
                 "responseMimeType": "application/json"
             }
         }
 
-        try:
-            res = requests.post(url, json=payload, timeout=30)
+        # BOUCLIER ANTI-429 (BOUCLE NON-RÉCURSIVE)
+        max_attempts = len(API_KEYS) * 2
+        attempts = 0
+        
+        while attempts < max_attempts:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model_id}:generateContent?key={API_KEYS[self.key_index]}"
+            try:
+                res = requests.post(url, json=payload, timeout=45)
+                
+                if res.status_code == 200:
+                    self.retry_count = 0 # Reset si succès
+                    return res.json()['candidates'][0]['content']['parts'][0]['text']
+                
+                elif res.status_code == 429:
+                    self.retry_count += 1
+                    print(f"🔄 Clé {self.key_index+1} saturée. Rotation...")
+                    self.key_index = (self.key_index + 1) % len(API_KEYS)
+                    if self.retry_count >= len(API_KEYS):
+                        print("⏳ [ANTI-BAN] Toutes les clés sont épuisées. Pause de 10s...")
+                        time.sleep(10)
+                        self.retry_count = 0
+                else:
+                    print(f"⚠️ OMEGA : Erreur API ({res.status_code}) - {res.text[:100]}")
+                    time.sleep(2)
             
-            if res.status_code == 429:
-                self.retry_count += 1
-                print(f"🔄 Clé {self.key_index+1} saturée ({self.retry_count}/{len(API_KEYS)}). Rotation...")
-                self.key_index = (self.key_index + 1) % len(API_KEYS)
-                return self.call_ai(prompt, is_gaming)
+            except Exception as e:
+                print(f"⚠️ OMEGA : Erreur réseau : {e}")
+                time.sleep(2)
+            
+            attempts += 1
 
-            if res.status_code == 200:
-                self.retry_count = 0 # Reset si succès
-                return res.json()['candidates'][0]['content']['parts'][0]['text']
-            
-            print(f"⚠️ OMEGA : Erreur API ({res.status_code}) - {res.text[:100]}")
-        except Exception as e:
-            print(f"⚠️ OMEGA : Erreur de communication : {e}")
+        print("❌ Échec total de la communication avec le Noyau.")
         return None
 
     def execute(self, decision_raw):
         """ Traduction des ordres cognitifs en actions physiques """
         if not decision_raw: return
         try:
+            # Nettoyage du JSON (protection contre le markdown de l'IA)
+            decision_raw = decision_raw.strip()
+            if decision_raw.startswith("```json"):
+                decision_raw = decision_raw[7:-3].strip()
+            elif decision_raw.startswith("```"):
+                decision_raw = decision_raw[3:-3].strip()
+
             d = json.loads(decision_raw)
             act = d.get('action', 'wait')
             p = d.get('params', {})
@@ -172,21 +225,26 @@ class OmegaZenith:
             print(f"\n🧠 [PENSÉE] : {d.get('analyse')}")
             print(f"🤖 OMEGA : {d.get('reponse')}")
 
-            if not self.device: return
+            if not self.device: 
+                print("❌ Impossible d'exécuter l'action : Appareil non connecté.")
+                return
 
             if act == "tap":
-                # Anti-bot : variation aléatoire
-                rx, ry = p['x'] + random.randint(-2, 2), p['y'] + random.randint(-2, 2)
+                rx, ry = p.get('x', 0), p.get('y', 0)
+                # Jitter léger pour simuler un humain
+                rx += random.randint(-3, 3)
+                ry += random.randint(-3, 3)
                 self.device.shell(f"input tap {rx} {ry}")
                 print(f"🖱️ Action : Tap ({rx}, {ry})")
             
             elif act == "swipe":
-                self.device.shell(f"input swipe {p['x1']} {p['y1']} {p['x2']} {p['y2']} {p.get('duration', 300)}")
+                self.device.shell(f"input swipe {p.get('x1',0)} {p.get('y1',0)} {p.get('x2',0)} {p.get('y2',0)} {p.get('duration', 300)}")
                 print(f"↔️ Action : Swipe")
             
             elif act == "type":
-                self.device.shell(f"input text '{p['text']}'")
-                print(f"⌨️ Action : Type '{p['text']}'")
+                text = p.get('text', '').replace("'", "\\'")
+                self.device.shell(f"input text '{text}'")
+                print(f"⌨️ Action : Type '{text}'")
             
             elif act == "wait":
                 sec = p.get('seconds', 2)
@@ -194,30 +252,31 @@ class OmegaZenith:
                 time.sleep(sec)
             
             elif act == "system_shell":
-                self.device.shell(p['cmd'])
-                print(f"💻 Action : Shell '{p['cmd']}'")
-            
-            elif act == "learn_ui":
-                app = self.get_current_app()
-                if app not in self.ui_map: self.ui_map[app] = {}
-                self.ui_map[app].update(p.get('buttons', {}))
-                self.save_json(self.ui_map_file, self.ui_map)
-                print(f"👁️ Action : Interface mémorisée pour {app}")
+                cmd = p.get('cmd', '')
+                self.device.shell(cmd)
+                print(f"💻 Action : Shell '{cmd}'")
 
+        except json.JSONDecodeError:
+            print(f"❌ OMEGA : Erreur de parsing JSON. Réponse brute : {decision_raw}")
         except Exception as e:
             print(f"❌ OMEGA : Erreur d'exécution : {e}")
 
-    def start_autonomous_loop(self, prompt="Continue l'automatisation."):
+    def start_autonomous_loop(self, prompt="Continue l'automatisation en fonction de ce que tu vois à l'écran."):
         """ Activation du mode Zénith (Boucle infinie) """
         self.is_running = True
-        print("\n🚀 [MODE ZÉNITH ACTIVÉ] OMEGA prend le contrôle...")
+        print("\n🚀 [MODE ZÉNITH ACTIVÉ] OMEGA prend le contrôle visuel...")
         
         def loop():
             while self.is_running:
-                decision = self.call_ai(prompt)
+                print("\n📸 Capture et analyse de l'écran en cours...")
+                decision = self.call_ai(prompt, is_gaming=True)
                 if decision:
                     self.execute(decision)
-                time.sleep(1.5) # Délai de sécurité pour le quota API
+                else:
+                    print("⚠️ Aucune décision prise. Nouvelle tentative...")
+                
+                # Délai de sécurité pour éviter le spam API et laisser l'UI réagir
+                time.sleep(4) 
 
         threading.Thread(target=loop, daemon=True).start()
 
@@ -229,7 +288,7 @@ if __name__ == "__main__":
     omega = OmegaZenith()
     
     print("==========================================")
-    print("   OMEGA v11.0 - LE ZÉNITH (PYTHON)       ")
+    print("   OMEGA v12.0 - LE ZÉNITH (VISION PURE)  ")
     print("==========================================")
     
     if not API_KEYS:
@@ -248,6 +307,7 @@ if __name__ == "__main__":
             elif "stop" in cmd.lower():
                 omega.stop()
             else:
+                print("📸 Analyse en cours...")
                 dec = omega.call_ai(cmd)
                 omega.execute(dec)
                 
