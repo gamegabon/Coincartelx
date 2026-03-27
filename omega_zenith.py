@@ -17,10 +17,7 @@ from ppadb.client import Client as AdbClient
 # ==========================================================
 
 API_KEYS = [
-    "AIzaSyDwEQ79fx8VC4-eqohcVnEU_XP3GkR-9nM",
-    "AIzaSyDKGmiJ1A5get3bTq3kv6GaAWKI99ijlTI",
-    "AIzaSyAjj9_74wHXor9KxsNVJ9PEtcvrgyh8gX8",
-    "AIzaSyA66ysmvWZeTxYALtZy98k2GhgfcOsuOdQ"
+    "AIzaSyCcyzLthiiNGeJfTlaDT9q8E-6QR8ltf5U"
 ]
 
 MODEL_ID = "gemini-2.5-flash"
